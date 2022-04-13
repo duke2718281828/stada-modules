@@ -1,15 +1,5 @@
 package framework.ru.documentum.utils;
 
-import java.text.MessageFormat;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.List;
-
 import com.documentum.fc.client.IDfSession;
 import com.documentum.fc.client.IDfSysObject;
 import com.documentum.fc.client.IDfTypedObject;
@@ -17,12 +7,14 @@ import com.documentum.fc.common.DfException;
 import com.documentum.fc.common.DfTime;
 import com.documentum.fc.common.IDfId;
 import com.documentum.fc.common.IDfTime;
-
 import com.documentum.services.collaboration.ICalendarEvent;
 import com.documentum.services.collaboration.IRecurrenceSet;
 import com.documentum.services.richtext.IRichText;
-
 import framework.ru.documentum.services.DsHelper;
+
+import java.text.MessageFormat;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 /**
  * Работа с календарем. <br>
@@ -55,7 +47,7 @@ public class CalendarExHelper extends DsHelper {
     /**
      * Для computeOffSetTime нужны только несколько полей.
      */
-    private class CalendarEvent implements ICalendarEvent {
+    private static class CalendarEvent implements ICalendarEvent {
 
         private Date start, end;
 
@@ -153,6 +145,21 @@ public class CalendarExHelper extends DsHelper {
             throw new DfException("Not implemented");
         }
 
+        public boolean startsBefore(Date other) {
+            return start.compareTo(other) <= 0;
+        }
+
+        public boolean startsAfter(Date other) {
+            return start.compareTo(other) >= 0;
+        }
+
+        public boolean endsBefore(Date other) {
+            return end.compareTo(other) <= 0;
+        }
+
+        public boolean endsAfter(Date other) {
+            return end.compareTo(other) >= 0;
+        }
     }
 
     /**
@@ -226,46 +233,31 @@ public class CalendarExHelper extends DsHelper {
      * @return
      */
     private boolean filterByExcludeList(CalendarEvent current) {
-        boolean needAdd = true;
         for (ICalendarEvent item : excludeList) {
 
             CalendarEvent excludeItem = (CalendarEvent) item;
 
-            boolean itemProcessed = true;
-            if ((excludeItem.start.compareTo(current.start) >= 0) && (excludeItem.end.compareTo(current.end) <= 0)) {
-                // Промежуток-исключение посередине текущего промежутка.
-
-                add(current.start, excludeItem.start);
-                add(excludeItem.end, current.end);
-            } else if ((excludeItem.start.compareTo(current.start) <= 0)
-                    && (excludeItem.end.compareTo(current.end) >= 0)) {
-                // Текущий промежуток посередине промежутка-исключения.
-
-                // Not add, day excluded
-            } else if ((excludeItem.start.compareTo(current.start) >= 0)
-                    && (excludeItem.start.compareTo(current.end) <= 0)) {
-                // Начало промежутка-исключения посередине текущего промежутка.
-
-                add(current.start, excludeItem.start);
-            } else if ((excludeItem.end.compareTo(current.start) >= 0) && (excludeItem.end.compareTo(current.end) <= 0)) {
-                // Конец промежутка-исключения посередине текущего промежутка.
-
-                add(excludeItem.end, current.end);
-            } else {
+            if (current.startsAfter(excludeItem.end) || current.endsBefore(excludeItem.start)) {
                 // Промежуток-исключение не пересекатся с текущим промежутком.
-
-                itemProcessed = false;
+                continue;
             }
 
-            if (itemProcessed) {
-                debug("Exclude {0}, {1} by {2}, {3}", current.start, current.end, excludeItem.start, excludeItem.end);
-
-                needAdd = false;
-                break;
+            if (current.startsBefore(excludeItem.start)) {
+                // Начало текущего промежутка раньше начала промежутка исключения
+                add(current.start, excludeItem.start);
             }
+
+            if (current.endsAfter(excludeItem.end)) {
+                // Окончание текущего промежутка позже оконания промежутка исключения
+                add(excludeItem.end, current.end);
+            }
+
+            debug("Exclude {0}, {1} by {2}, {3}", current.start, current.end, excludeItem.start, excludeItem.end);
+
+            return false;
         }
 
-        return needAdd;
+        return true;
     }
 
     /**
