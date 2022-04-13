@@ -11,6 +11,7 @@ import com.documentum.services.collaboration.ICalendarEvent;
 import com.documentum.services.collaboration.IRecurrenceSet;
 import com.documentum.services.richtext.IRichText;
 import framework.ru.documentum.services.DsHelper;
+import org.apache.commons.lang.StringUtils;
 
 import java.text.MessageFormat;
 import java.text.SimpleDateFormat;
@@ -48,6 +49,17 @@ public class CalendarExHelper extends DsHelper {
      * Для computeOffSetTime нужны только несколько полей.
      */
     private static class CalendarEvent implements ICalendarEvent {
+
+        private static Comparator<ICalendarEvent> COMPARATOR= new Comparator<ICalendarEvent>() {
+            @Override
+            public int compare(ICalendarEvent o1, ICalendarEvent o2) {
+                try {
+                    return o1.getStartDate().getDate().compareTo(o2.getStartDate().getDate());
+                } catch (Throwable tr) {
+                    throw new RuntimeException(tr);
+                }
+            }
+        };
 
         private Date start, end;
 
@@ -346,9 +358,6 @@ public class CalendarExHelper extends DsHelper {
 
         initExcludeList(calendarId, start, keyword);
         loadDaysList(calendarId, start, keyword);
-        if (!filterByStart) {
-            start = null;
-        }
 
         final List<ICalendarEvent> list2 = new ArrayList<>();
 
@@ -359,46 +368,29 @@ public class CalendarExHelper extends DsHelper {
 
             CalendarEvent current = (CalendarEvent) event;
 
-            boolean needAdd = true;
-            if (start != null) {
-
-                // Начало дня меньше старта. Но конец больше старта.
-                if ((current.start.compareTo(start) < 0) && (current.end.compareTo(start) > 0)) {
+            if (filterByStart && start != null) {
+                // Окончание дня меньше старта.
+                if (current.endsBefore(start)) {
+                    continue;
+                }
+                // Начало дня меньше старта.
+                if (current.startsBefore(start)) {
                     current.start = start;
                 }
-
-                if (current.start.compareTo(start) < 0) {
-                    needAdd = false;
-                }
             }
 
-            if (needAdd) {
-                needAdd = filterByExcludeList(current);
-            }
-
-            if (needAdd) {
+            if (filterByExcludeList(current)) {
                 list2.add(event);
             }
         }
 
-        ICalendarEvent[] items = list2.toArray(new ICalendarEvent[]{});
-        Arrays.sort(items, new Comparator<ICalendarEvent>() {
+        Collections.sort(list2, CalendarEvent.COMPARATOR);
 
-            @Override
-            public int compare(ICalendarEvent o1, ICalendarEvent o2) {
-                try {
-                    return o1.getStartDate().getDate().compareTo(o2.getStartDate().getDate());
-                } catch (Throwable tr) {
-                    throw new RuntimeException(tr);
-                }
-            }
-        });
-
-        for (ICalendarEvent event : items) {
+        for (ICalendarEvent event : list2) {
             trace("{0}, {1}, {2}", event.getStartDate(), event.getEndDate(), event.getDuration());
         }
 
-        return Arrays.asList(items);
+        return list2;
     }
 
     /**
