@@ -1,0 +1,41 @@
+plugins {
+    id 'java'
+    id 'pmd'
+}
+
+group 'ro.planet'
+version '1.0-SNAPSHOT'
+
+sourceCompatibility = 1.7
+
+compileJava.options.encoding = 'UTF-8'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+
+    compile group: 'org.docx4j', name: 'docx4j', version: '3.2.2'
+    compile group: 'org.docx4j', name: 'docx4j-ImportXHTML', version: '3.2.2'
+    compile group: 'com.lowagie', name: 'itext', version: '2.1.7'
+    compile group: 'joda-time', name: 'joda-time', version: '2.0'
+    compile group: 'org.jsoup', name: 'jsoup', version: '1.10.2'
+    compile group: 'net.sf.jtidy', name: 'jtidy', version: 'r938'
+//    compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.5'
+    compile group: 'org.aspectj', name: 'aspectjrt', version: '1.5.4'
+    compile group: 'commons-lang', name: 'commons-lang', version: '2.4'
+//    compile group: 'javax.xml.bind', name: 'jaxb-api', version: '2.1'
+//    compile group: 'javax.xml', name: 'jaxb-impl', version: '2.1'
+    compile fileTree(dir: 'libs', include: '*.jar')
+}
+
+pmd {
+    consoleOutput = true
+    toolVersion = "6.38.0"
+    ruleSets = ["$projectDir/pmd_rules.xml"]
+}
+
+pmdMain {
+    outputs.upToDateWhen{false}
+}
